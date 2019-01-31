@@ -1,0 +1,394 @@
+package cs1302.gallery;
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.layout.HBox;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import javafx.scene.control.Button;
+import javafx.scene.layout.VBox;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Menu;
+import javafx.scene.control.ToolBar;
+import javafx.scene.control.Separator;
+import javafx.scene.text.Text;
+import javafx.scene.control.TextField;
+import java.net.URLEncoder;
+import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.io.InputStreamReader;
+import javafx.scene.control.ProgressBar;
+import java.net.MalformedURLException;
+import java.io.IOException;
+import com.google.gson.*;
+import javafx.application.Platform;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.TilePane;
+import java.util.ArrayList;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import java.util.Random;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.scene.layout.GridPane;
+import javafx.util.Duration;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.stage.Modality;
+import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+/**
+ * This class creates a GUI that allows a user to 
+ * search through iTunes and display 20 images according
+ * to their search query while randomly updating an image
+ * every two seconds
+ *
+ * @author David Davenport
+ */
+public class GalleryApp extends Application {
+       MenuBar menuBar = new MenuBar();
+       VBox vBox = new VBox(menuBar);
+       Scene scene = new Scene(vBox,640, 500);
+       GridPane grid = new GridPane();
+       TilePane tile = new TilePane();
+       ToolBar toolBar = new ToolBar();
+       ProgressBar p1 = new ProgressBar(0);
+       TextField searchBar = new TextField();
+       Timeline timeline = new Timeline();
+      protected int count;
+      protected String defaultQuery;
+      protected URL url;
+      protected InputStreamReader reader;
+      protected JsonParser jp;
+     protected  JsonElement je;
+      protected JsonObject root;
+       protected JsonArray results;
+      protected int numResults = 200;
+     protected  String [] artUrlArray = new String[numResults];
+     protected  JsonObject result;
+     protected  JsonElement artworkUrl100;
+      protected String artUrl;
+     protected  Image artPics;
+     protected  ImageView artPicsView;
+     protected ImageView imageView;
+     protected  String baseUrl;
+      protected String newSearch;
+     protected  int randomCol;
+     protected  int randomRow;
+      protected int randomPic;
+      protected double progressIncrementor = 0.0;
+      protected int row;
+      protected int col;
+      Random randomGenerator = new Random();
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Gallery!");
+        stage.setScene(scene);
+        stage.setResizable(false);
+        vBox.setFillWidth(false);
+       menuBar();
+       addImages(artUrlArray);
+       playPauseButton();
+       searchBar();
+       updateImages();
+       vBox.getChildren().add(toolBar); 
+       vBox.getChildren().add(grid);
+       progressBar(); 
+	     stage.sizeToScene();
+       stage.show();
+    } // start
+/**
+ * adds a random image based on the query to a random row 
+ * and column
+ */
+    public void newImages()
+    {
+     if (numResults > 20)
+     {
+     randomCol = randomGenerator.nextInt(4); //generates random column                                   
+     randomRow = randomGenerator.nextInt(3); //generates random row
+     randomPic = randomGenerator.nextInt(numResults-1); // generates random image
+     artPics = new Image(artUrlArray[randomPic]);
+     artPicsView = new ImageView(artPics); 
+     artPicsView.setFitHeight(100);
+     artPicsView.setFitWidth(100);
+     grid.add(artPicsView, randomCol, randomRow);
+     }
+    }
+ /**
+ * adds 20 images based on a default query to 
+ * a grid 
+ *
+ *@param artUrlArray the array used to store art urls
+ */
+      public void addImages(String[] artUrlArray)
+      {
+        try {
+    progressIncrementor = 0.0; //used for setting progress bar
+    count = 0; //used to increment artUrlArray 
+    defaultQuery = "https://itunes.apple.com/search?term=rock";
+    url = new URL(defaultQuery);
+		reader = new InputStreamReader(url.openStream());
+    jp = new JsonParser();
+    je = jp.parse(reader);
+    root = je.getAsJsonObject();                      // root of response
+    results = root.getAsJsonArray("results");          // "results" array
+    numResults = results.size();                            // "results" array size
+    for (int i = 0; i < numResults; i++)
+     {                       
+    result = results.get(i).getAsJsonObject();    // object i in array
+    artworkUrl100 = result.get("artworkUrl100"); // artworkUrl100 member
+    if (artworkUrl100 != null)  // member might not exist
+    {                            
+         artUrl = artworkUrl100.getAsString();        // get member as string
+         artUrlArray[i] = artUrl;
+    } // if
+} // for
+  addImagesHelper();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}//catch
+      }//addImages
+      
+  /**
+ * used to make the addImages method more concise
+ */
+      private void addImagesHelper()
+      {
+       for (col = 0; col< 5; col++)
+           {
+            for (row = 0; row < 4; row++)
+            {
+             artPics = new Image(artUrlArray[count]);
+             artPicsView = new ImageView(artPics);
+             artPicsView.setFitHeight(100);
+             artPicsView.setFitWidth(100);
+             grid.add(artPicsView, col, row);
+             p1.setProgress(progressIncrementor += 0.05);
+             count++;
+             }//for
+            }//for
+      }//addImagesHelper
+ /**
+ * pauses and plays the random image method and also
+ * changes the button text every time it is pressed
+ */
+      public void playPauseButton()
+      {
+      Button playPause = new Button("Pause");
+      EventHandler<ActionEvent> handler = event -> {newImages();};
+       KeyFrame keyFrame = new KeyFrame(Duration.seconds(2), handler);
+       timeline.setCycleCount(Timeline.INDEFINITE);
+       timeline.getKeyFrames().add(keyFrame);
+       playPause.setOnAction(handler);
+       timeline.play();
+       playPause.setOnAction(e -> {
+        if (playPause.getText().equals("Pause"))
+          {
+            timeline.pause();
+            playPause.setText("Play");
+          }
+        else
+          {
+           timeline.play();
+           playPause.setText("Pause");
+          }
+       });
+       toolBar.getItems().add(playPause);
+       toolBar.getItems().add(new Separator());
+       Text text = new Text();
+       text.setText("Search Query:");
+       toolBar.getItems().add(text);
+      }//playPauseButton
+ /**
+ * Creates the menu bar and adds the file menu 
+ *  and help menu and performs their respective actions
+ */
+      public void menuBar()
+      {
+        Menu fileMenu = new Menu("File");
+        MenuItem exitMenu = new MenuItem("Exit");
+        exitMenu.setOnAction(e -> {
+        Platform.exit();
+        System.exit(0); //exits the app
+        });
+        Menu helpMenu = new Menu("Help");
+        MenuItem aboutMenu = new MenuItem("About");
+        aboutMenu.setOnAction(e ->  {
+        newWindow();
+        });
+        helpMenu.getItems().add(aboutMenu);
+        fileMenu.getItems().add(exitMenu);
+        menuBar.getMenus().add(fileMenu);
+        menuBar.getMenus().add(helpMenu);
+      }//menuBar
+ /**
+ * Creates the new pop up window for the about menu item
+ * and includes a picture, name, version number, and email
+ */
+       public void newWindow()
+       {
+       Stage newStage = new Stage(); 
+       newStage.setTitle("About David Davenport");
+       VBox newVBox = new VBox();
+       Scene newScene = new Scene(newVBox, 400, 400);
+       newStage.setScene(newScene);
+       newStage.setResizable(false);
+       newVBox.setFillWidth(false);
+       Label name = new Label("David Davenport");
+       newVBox.getChildren().add(name);
+       Label email = new Label("dbd34563@uga.edu");
+       newVBox.getChildren().add(email);
+       Label versionNumber = new Label("Version 6.9");
+       newVBox.getChildren().add(versionNumber);
+       Image newImage = new Image("https://i.imgur.com/P2bfEwx.jpg"); //picture of me
+       imageView = new ImageView(newImage);
+       imageView.setFitHeight(400);
+       imageView.setFitWidth(400);
+       newVBox.getChildren().add(imageView);
+       newStage.show();
+       }//newWindow
+   /**
+ * Creates the progress bar and corresponding 
+ * text that goes next to it
+ */
+      public void progressBar()
+      {
+        Text text = new Text();
+        text.setText("Images Provided Courtesy of iTunes");
+        HBox hBox = new HBox();
+        hBox.getChildren().add(p1);
+        hBox.getChildren().add(text);
+        vBox.getChildren().add(hBox);
+      }
+ /**
+ * Creates the search bar used to search 
+ * through the iTunes query 
+ */
+      public void searchBar()
+      {
+      toolBar.getItems().add(searchBar);
+      }
+ /**
+ * adds a new Grid of 20 images based on the
+ * query that the user enters and then by pressing the 
+ * update images button
+ */
+      public void updateImages()
+      {
+         Button updateImages = new Button("Update Images"); //creates button
+         updateImages.setOnAction(f ->{
+        try {
+    count = 0;
+    baseUrl = "https://itunes.apple.com/search?term="; //default url
+    newSearch = baseUrl + URLEncoder.encode(searchBar.getText(), "UTF-8"); //encodes the query
+    url = new URL(newSearch);
+    reader = new InputStreamReader(url.openStream());
+    jp = new JsonParser();
+    je = jp.parse(reader);
+    root = je.getAsJsonObject();                      // root of response
+    results = root.getAsJsonArray("results");          // "results" array
+    numResults = results.size();                            // "results" array size
+    artUrlArray = new String[numResults];
+    if (numResults >= 20) //checks if there are more than 20 urls in the search query
+    {
+    grid.getChildren().clear(); //clears the current grid to allow for new image replacement
+    count = 0;
+    for (int i = 0; i < numResults; i++)
+     {                       
+     result = results.get(i).getAsJsonObject();    // object i in array
+     artworkUrl100 = result.get("artworkUrl100"); // artworkUrl100 member
+    if (artworkUrl100 != null)  // member might not exist
+    {                            
+         artUrl = artworkUrl100.getAsString();        // get member as string
+         artUrlArray[i] = artUrl;
+    } // if
+} // for 
+updateImagesHelper();
+}//if
+else
+{
+makeAlert();
+} //else
+		} catch (IOException e) {
+			e.printStackTrace();
+		} //catch
+         });
+         toolBar.getItems().add(updateImages);
+      }//updateImages
+/**
+ * helps make row and col effectively final
+ *
+ *@param col the columns used in the grid
+ *@param row the rows used in the grid
+ */
+      private void addToGrid(int col, int row)
+      {
+       Platform.runLater(() -> {grid.add(artPicsView, col, row);});
+      }
+/**
+ * updates the progress bar everytime an 
+ * an image is added to the grid
+ */
+      private void updateProgress()
+      {
+      Platform.runLater(() -> {
+        p1.setProgress(p1.getProgress() + 0.05);
+        });
+      }
+/**
+ * Creates the error message window if less
+ *than 20 urls are obtained from the query
+ */
+      private void makeAlert()
+      {
+      Alert alert = new Alert(AlertType.INFORMATION);
+      alert.setTitle("Error");
+      alert.setHeaderText("Less than 20 images available");
+      alert.setContentText("There are less than 20 images to display for the query");
+      alert.showAndWait();
+      }
+/**
+ * helps make the updateImages method more concise
+ */
+      private void updateImagesHelper()
+      {
+      Thread t = new Thread(() -> {
+Platform.runLater(() -> {p1.setProgress(0);}); //sets progress bar back to zero evertime
+for (col = 0; col< 5; col++)
+           {
+            for (row = 0; row < 4; row++)
+            {
+            artPics = new Image(artUrlArray[count]);
+            Platform.runLater(() -> { artPicsView = new ImageView(artPics);});
+            Platform.runLater(() -> { artPicsView.setFitHeight(100);});
+            Platform.runLater(() -> { artPicsView.setFitWidth(100);});
+            addToGrid(col, row);
+            updateProgress();
+            count++;
+             }//for
+            }//for 
+            });//thread
+    t.setDaemon(true);
+    t.start();
+      }
+/**
+ * main method used to launch the application
+ */
+    public static void main(String[] args){
+	try {
+	    Application.launch(args);
+	} catch (UnsupportedOperationException e) {
+	    System.out.println(e);
+	    System.err.println("If this is a DISPLAY problem, then your X server connection");
+	    System.err.println("has likely timed out. This can generally be fixed by logging");
+	    System.err.println("out and logging back in.");
+	    System.exit(1);
+	} // try
+    } // main
+} // GalleryApp
+
